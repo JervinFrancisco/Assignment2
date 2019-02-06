@@ -27,6 +27,11 @@ class MainActivity : AppCompatActivity() {
     private var mSensor: Sensor? = null
 
     var maxLight = 0.0f
+    var ambientlight=0.0f
+    var currentX=0.0f
+
+    var xInta = 0.0f
+    var xBool = true
 
     var flashLightStatus = false
     var deviceHasCameraFlash: Boolean = false
@@ -38,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var xEditText : EditText
     lateinit var yEditText : EditText
     lateinit var zEditText : EditText
+
 
     lateinit var screenBackground: View
 
@@ -55,44 +61,24 @@ class MainActivity : AppCompatActivity() {
         cameraId = camManager.cameraIdList[0] // Usually front camera is at 0 position.
         deviceHasCameraFlash = getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH);
 
-
-        val flashLight = findViewById<Button>(R.id.flashlight_button)
-        flashLight.setOnClickListener{
-            try {
-                if(deviceHasCameraFlash){
-                    if(flashLightStatus){//when light on
-
-                        //turn the light off:
-                        camManager.setTorchMode(cameraId, false)
-                    }
-                    else //when light off
-
-                        //turn the light on:
-                        camManager.setTorchMode(cameraId, true)
-                }
-
-                flashLightStatus = !flashLightStatus  //flip true to false, or false to true
-            }
-            catch( e:Throwable)
-            {
-                Log.i("Exception:", e.message)
-            }
-        }
-        // end of flashlight example
-
-
-
-
         //Vibration example. Look at powerpoint slides on vibration
         val vibrateButton = findViewById<Button>(R.id.vibrate_button)
         val vibrateMotor = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-        vibrateButton.setOnClickListener{
-
+        if(currentX>(xInta-45) || currentX<(xInta+45)){
             val pattern = longArrayOf(500, 500, 500, 500)
             val amplitudes = intArrayOf(0, 255, 0, 128)
             vibrateMotor.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, -1) )
         }
+
+        Log.i("X INta" , xInta.toString())
+
+            val pattern = longArrayOf(500, 500, 500, 500)
+            val amplitudes = intArrayOf(0, 255, 0, 128)
+            vibrateMotor.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, -1) )
+
+
+
         //end of vibration example
 
 
@@ -123,21 +109,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     inner class OrientationListener : SensorEventListener {
+
         override fun onSensorChanged(event: SensorEvent) {
             val values = event.values
 
             val x = values[0]
+            currentX = x
+            Log.i("x axis", x.toString())
             val y = values[1]
-            val z = values[2]
+
+            val vibrateMotor = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if(xBool == true){
+                xInta =x
+                xBool = false
+            }
+
+            
+            if(y>-45&& ambientlight<100) {
+                try {
+                    if (deviceHasCameraFlash) {
+                        if (!flashLightStatus) {//when light off
+
+                            //turn the light On:
+                            camManager.setTorchMode(cameraId, true)
+                        }
+                        //flip true to false, or false to true
+                    }
+                    flashLightStatus = !flashLightStatus
+                } catch (e: Throwable) {
+                    Log.i("Exception:", e.message)
+                }
+            }else if (y<0){
+                try {
+                    if (deviceHasCameraFlash) {
+                        if (flashLightStatus) {//when light on
+
+                            //turn the light Off:
+                            camManager.setTorchMode(cameraId, false)
+                        }
+                    }
+
+                    flashLightStatus = !flashLightStatus  //flip true to false, or false to true
+                } catch (e: Throwable) {
+                    Log.i("Exception:", e.message)
+                }
+
+
+            }
+
+
 
             xEditText.setText("X: $x")
             yEditText.setText("Y: $y")
-            zEditText.setText("Z: $z")
+
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
             // Do something here if sensor accuracy changes.
-            // You must implement this callback in your code.
+            // You must implement this callback in your code
         }
     }
 
@@ -146,9 +175,29 @@ class MainActivity : AppCompatActivity() {
     {
         override fun onSensorChanged(event: SensorEvent) {
             val values = event.values
+
+            val z = values[0]
+
+
+            ambientlight=z
             Log.i("Light:", "Lux:"+ values[0])
             maxLight = Math.max(maxLight, values[0])
-            screenBackground.setBackgroundColor(Color.rgb( 1.0f, values[0]/maxLight, values[0]/maxLight))
+            zEditText.setText("Z: $z")
+
+            if(z < 100 ){
+                try {
+                    if (deviceHasCameraFlash ) {
+                        if (flashLightStatus) {//when light on
+
+                            //turn the light Off:
+                            camManager.setTorchMode(cameraId, false)
+                        }
+                    }
+                } catch (e: Throwable) {
+                    Log.i("Exception:", e.message)
+                }
+            }
+
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
